@@ -159,9 +159,62 @@ def saveConfig(config, propertiesPath):
     config.write(configfile)
     configfile.close()
 
+
 def getLocalAlbums(albumsPath):
+    ''' Returns a list of dict as { name, path, desc, visibility }
+    '''
+    def isAlbum(path):
+        '''
+        '''
+
+    path, dirs, files = shellutils.walk(path = albumsPath)
+
+    # Check subfolders
+    if dirs == []:
+        return None
+    else:
+        output = []
+        for eachDir in dirs:
+            result = isAlbum(eachDir)
+            if result != None:
+                output.append({'name':result["name"],
+                               'path':eachDir,
+                               'desc':result["desc"],
+                               'visibility':result["visibility"],
+                              })
+        return output
+
+def getPhotosOrVideos(albumPath):
     '''
     '''
+    output = []
+    path, dirs, files = shellutils.walk(path = albumPath)
+    for photoOrVideo in files:
+        if isPhoto(photoOrVideo) or isVideo(photoOrVideo): output.append(photoOrVideo)
+    return output
+
+    
+def isPhoto(path):
+    '''
+    '''    
+    photo_ext=set([
+      '.jpg',
+      '.bmp',
+      '.gif',
+      '.png',
+    ])
+    return str.lower(shellutils.extension(path)) in photo_ext
+
+
+def isVideo(path):
+    '''
+    '''
+    video_ext=set([
+      '.avi',
+      '.mp4',
+      '.mpg',
+    ])
+    return str.lower(shellutils.extension(path)) in video_ext
     
 
 
@@ -205,7 +258,7 @@ def core(propertiesFilename):
     (file, pathname, description) = imp.find_module(__program__+"."+service)
     serviceModule = imp.load_module(__program__+"."+service, file, pathname, description)
     
-    # Verify valid token
+    # Verify valid token or generate and save
     if not serviceModule.isTokenValid(token):
         token = serviceModule.getValidToken()
         logging.debug("Adquired new token: " + token)
@@ -213,10 +266,15 @@ def core(propertiesFilename):
         saveConfig(properties, propertiesFilename)
 
     # Main loop
-    for album in  getLocalAlbums(albumsPath):
-        if not serviceModule.isThereAlbum(album["name"]):
-            serviceModule.addAlbum(token, albumName, albumDesc=""):
+    for album in getLocalAlbums(albumsPath):
+        if not serviceModule.isThereAlbum(token, album["name"]):
+            serviceModule.addAlbum(token, album["name"], album["desc"])
 
+        for photoOrVideo in getPhotosOrVideos(album["path"]):
+            if isPhoto(photoOrVideo):
+                serviceModule.addPhoto(token, album["name"], photoOrVideo)
+            if isVideo(photoOrVideo):
+                serviceModule.addVideo(token, album["name"], photoOrVideo)
 
     # DO STUFF HERE
 #Cojer las properties del archivo de config: nombre, path, tipo (fb, picasa, etc), authkey, visibility
