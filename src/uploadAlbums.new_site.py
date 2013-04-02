@@ -3,7 +3,7 @@
 #  Author: 
 __author__ = '<a href="mailto:debuti@gmail.com">Borja Garcia</a>'
 # Program: 
-__program__ = 'uploadPhotos.new_site'
+__program__ = 'uploadAlbums.new_site'
 # Package:
 __package__ = ''
 # Descrip: 
