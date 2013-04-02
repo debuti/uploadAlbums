@@ -30,6 +30,7 @@ import inspect
 import ConfigParser
 import glob
 import traceback
+import imp
 
 # Parameters, Globals n' Constants
 KIBI = 1024
@@ -63,12 +64,6 @@ for infile in glob.glob(os.path.join(libPath, '*.*')):
     
 #import thepyutilities.shellutils as shellutils
 
-
-
-# Error declaration
-error = { "" : "",
-          "" : "",
-          "" : "" }
 
 # Usage function, logs, utils and check input
 def openLog(mode, desiredLevel):
@@ -119,59 +114,43 @@ def closeLog():
     '''
     logging.shutdown()
 
+
 def checkInput():
     '''This function is for treat the user command line parameters.
     '''
-
-    #####THIS SECTION IS A EXAMPLE#####
     # Create instance of OptionParser Module, included in Standard Library
     p = optparse.OptionParser(description=__description__,
                               prog=__program__,
                               version=__version__,
                               usage='''%prog [options]''') 
     # Define the options. Do not use -h nor -v, the are reserved to help and version automaticly
-    p.add_option('--old', '-o', action="store", type="string", dest="old_regexp", help='Regular expression to search for')
-    p.add_option('--new', '-n', action="store", type="string", dest="new_string", help='New text to replace it')
-    p.add_option('--preview','-p', action="store_true", dest="do_preview", help='Ask to replace the coincidence before doing it')
-    p.add_option('--file','-f', action="store", type="string", dest="filename", help='The input/output file')
+    p.add_option('--file','-f', action="store", type="string", dest="filename", help='The configuration file')
 
     # Parse the commandline
     options, arguments = p.parse_args()
 
     # Decide what to do
-    if options.old_regexp is None or options.new_string is None or options.filename is None :
+    if options.filename is None:
         p.print_help()
         sys.exit(-1)
     else:
-        old_regexp = options.old_regexp
-        new_string = options.new_string
-        do_preview = options.do_preview
-        filename = options.filename
-        return [old_regexp, new_string, do_preview, filename]
+        if not (os.path.exists(options.filename) and os.path.isfile(options.filename)):
+            print "File not found"
+            sys.exit(-1)
+        else:
+            propertiesFilename = options.filename
+            return [propertiesFilename]
 
-    #####/THIS SECTION IS A EXAMPLE#####
 
 
 # Helper functions
-def createWorkDir():
-    '''This function is for creating the working directory, if its not already
-    '''
-    #####THIS SECTION IS A EXAMPLE#####
-    if not os.path.isdir(APP_PATH):
-        os.mkdir(APP_PATH)
-    if not os.path.isdir(LOG_PATH):
-        os.mkdir(LOG_PATH)
-    if not os.path.isfile(LOG_FILENAME):
-        f = open(LOG_FILENAME, "w")
-        f.close()
-    #####/THIS SECTION IS A EXAMPLE#####
-
 def readConfig(propertiesPath):
     '''This procedure returns the program properties file
     '''
     config = ConfigParser.RawConfigParser()
     config.read(propertiesPath)
     return config
+
     
 def saveConfig(config, propertiesPath):
     '''This procedure returns the program properties file
@@ -180,16 +159,64 @@ def saveConfig(config, propertiesPath):
     config.write(configfile)
     configfile.close()
 
+def getLocalAlbums(albumsPath):
+    '''
+    '''
+    
+
+
 # Main function
-def core():
+def core(propertiesFilename):
     '''This is the core, all program logic is performed here
     '''
-    createWorkDir()
-    properties = readConfig(propertiesPath)
+    properties = readConfig(propertiesFilename)
 
-#####THIS SECTION IS A EXAMPLE#####
-    properties.get('General', 'foo')
-#####/THIS SECTION IS A EXAMPLE#####
+    name = properties.get('General', 'name')
+    if name == "":
+        logging.error("You should supply a name")
+        sys.exit(-2)
+
+    service = properties.get('General', 'service')
+    if service == "":
+        logging.error("You should supply a valid service")
+        sys.exit(-2)
+
+    visibility = properties.get('General', 'visibility')
+    if name == "":
+        logging.error("You should supply a valid visibility")
+        sys.exit(-2)
+
+    token = properties.get('General', 'token')
+
+    #TODO: Test if path is absolute or relative. now i assume its relative
+    albumsPath = properties.get('General', 'path')
+    albumsPath = os.path.join(os.path.dirname(propertiesFilename), albumsPath)
+    if not (os.path.exists(albumsPath) and os.path.isdir(albumsPath)):
+        logging.error("You should supply a existing albums path")
+        sys.exit(-2)
+
+    # OK so readed settings are
+    logging.debug("name: " + name)
+    logging.debug("token: " + token)
+    logging.debug("albumsPath: " + albumsPath)
+    logging.debug("service: " + service)
+    logging.debug("visibility: " + visibility)
+
+    (file, pathname, description) = imp.find_module(__program__+"."+service)
+    serviceModule = imp.load_module(__program__+"."+service, file, pathname, description)
+    
+    # Verify valid token
+    if not serviceModule.isTokenValid(token):
+        token = serviceModule.getValidToken()
+        logging.debug("Adquired new token: " + token)
+        properties.set('General', 'token', token)
+        saveConfig(properties, propertiesFilename)
+
+    # Main loop
+    for album in  getLocalAlbums(albumsPath):
+        if not serviceModule.isThereAlbum(album["name"]):
+            serviceModule.addAlbum(token, albumName, albumDesc=""):
+
 
     # DO STUFF HERE
 #Cojer las properties del archivo de config: nombre, path, tipo (fb, picasa, etc), authkey, visibility
@@ -203,16 +230,17 @@ def core():
 #    si no existe ninguna con el caption igual se sube fbcmd ADDPIC filename albumId basename.jpg
 #TODO: COMO SUBO VIDEOS?
 
+    saveConfig(properties, propertiesFilename)
     
-    saveConfig(properties, propertiesPath)
-    
+
 def main():
     '''This is the main procedure, is detached to provide compatibility with the updater
     '''
     openLog(LOG_MODE, LOG_LEVEL)
-    checkInput()
-    core()
+    [propertiesFilename] = checkInput()
+    core(propertiesFilename)
     closeLog()
+
 
 # Entry point
 if __name__ == '__main__':
