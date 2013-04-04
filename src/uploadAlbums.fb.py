@@ -145,7 +145,6 @@ def getAllAlbums(token):
     user = graph.get_object("me")
     lastAfter="0"
      
-    #Mientras que exista paging.next, itero
     while True:
         result = graph.get_connections(user["id"], "albums", limit="1", after=lastAfter)
         if result["data"] != []:
@@ -186,13 +185,14 @@ def isThereAlbum(token, albumName):
         return True
 
 
-def addAlbum(token, albumName, albumDesc=""):
+def addAlbum(token, albumName, albumDesc="", privacy="SELF"):
     ''' Adds a new album 
+         -privacy must be one of: EVERYONE, ALL_FRIENDS, FRIENDS_OF_FRIENDS, CUSTOM, SELF
     '''
     if not isThereAlbum(token, albumName):
         graph = facebook.GraphAPI(token)
-        result = graph.put_object("me", "albums", message=albumDesc, name=albumName)
-        #print result
+        result = graph.put_object("me", "albums", message=albumDesc, name=albumName, privacy={"value":privacy})
+        logging.debug("The result was " + str(result))
 
 
 def delAlbum(token, albumName):
@@ -258,25 +258,29 @@ def isThereObject(token, albumName, objectName):
         return True
 
 
-def addPhoto(token, albumName, photoPath):
+def addPhoto(token, albumName, photoPath, privacy="SELF"):
     ''' Adds a new photo to the selected album. This library must handle the restictions
         of the online service as number of photos per album, etc.
+         -privacy must be one of: EVERYONE, ALL_FRIENDS, FRIENDS_OF_FRIENDS, CUSTOM, SELF
     '''
     if isThereAlbum(token, albumName):
         if not isThereObject(token, albumName, os.path.basename(photoPath)):
             graph = facebook.GraphAPI(token)
-            result = graph.put_photo(open(photoPath), os.path.basename(photoPath), getAlbumByName(token, albumName)["id"])
+            privacy = json.dumps({"value":privacy})
+            result = graph.put_photo(open(photoPath), os.path.basename(photoPath), getAlbumByName(token, albumName)["id"], privacy=privacy)
             logging.debug("The result was " + str(result))
 
 
-def addVideo(token, albumName, videoPath):
+def addVideo(token, albumName, videoPath, privacy="SELF"):
     ''' Adds a new video to the selected album
         The aspect ratio of the video must be between 9x16 and 16x9, and the video cannot exceed 1024MB or 180 minutes in length.
+         -privacy must be one of: EVERYONE, ALL_FRIENDS, FRIENDS_OF_FRIENDS, CUSTOM, SELF
     '''
     if isThereAlbum(token, albumName):
         if not isThereObject(token, albumName, os.path.basename(videoPath)):
             graph = facebook.GraphAPI(token)
-            result = graph.put_video(open(videoPath), os.path.basename(videoPath), getAlbumByName(token, albumName)["id"])
+            privacy = json.dumps({"value":privacy})
+            result = graph.put_video(open(videoPath), os.path.basename(videoPath), getAlbumByName(token, albumName)["id"], privacy=privacy)
             logging.debug("The result was " + str(result))
 
 

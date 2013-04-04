@@ -294,18 +294,21 @@ def core(propertiesFilename):
 
     for album in albums:
         logging.info("Working on " + str(album["name"]))
+        logging.info("    Description: " + str(album["desc"]))
+        logging.info("    Privacy:     " + str(album["visibility"]))
+        
 
         if not serviceModule.isThereAlbum(token, album["name"]):
-            serviceModule.addAlbum(token, album["name"], album["desc"])
+            serviceModule.addAlbum(token, album["name"], album["desc"], album["visibility"] )
             logging.info("  Added album " + str(album["name"]))
 
         for photoOrVideo in getPhotosOrVideos(album["path"]):
             photoOrVideoFullPath = shellutils.fullPath(os.path.join(album["path"], photoOrVideo))
             if isPhoto(photoOrVideoFullPath):
-                serviceModule.addPhoto(token, album["name"], photoOrVideoFullPath)
+                serviceModule.addPhoto(token, album["name"], photoOrVideoFullPath, album["visibility"])
                 logging.info("  Added/updated photo " + str(photoOrVideo))
             if isVideo(photoOrVideoFullPath):
-                serviceModule.addVideo(token, album["name"], photoOrVideoFullPath)
+                serviceModule.addVideo(token, album["name"], photoOrVideoFullPath, album["visibility"])
                 logging.info("  Added/updated video " + str(photoOrVideo))
 
     # DO STUFF HERE
