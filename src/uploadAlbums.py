@@ -62,7 +62,7 @@ sys.path.insert(0, libPath)
 for infile in glob.glob(os.path.join(libPath, '*.*')):
     sys.path.insert(0, infile)
     
-#import thepyutilities.shellutils as shellutils
+import thepyutilities.shellutils as shellutils
 
 
 # Usage function, logs, utils and check input
@@ -92,7 +92,7 @@ def openLog(mode, desiredLevel):
         # add the handler to logger
         logger.addHandler(fh)
 
-    format = "%(asctime)-15s - %(levelname)-6s - %(message)s"
+    format = "%(asctime)-15s - %(levelname)-6s - %(funcName)10.10s - %(message)s"
     formatter = logging.Formatter(format)
     # Clean up root logger
     for handler in logging.getLogger('').handlers:
@@ -160,29 +160,52 @@ def saveConfig(config, propertiesPath):
     configfile.close()
 
 
-def getLocalAlbums(albumsPath):
+def getLocalAlbums(albumsFullPath):
     ''' Returns a list of dict as { name, path, desc, visibility }
+        Hint: Recursive function
     '''
     def isAlbum(path):
+        ''' A path is album if it has a description file
         '''
-        '''
+        ALBUM_DESCRIPTION_FILE="album.properties"
+        path, dirs, files = shellutils.walk(path = path)
+        for eachFile in files:
+            if (eachFile == ALBUM_DESCRIPTION_FILE):
+                 eachFileFullPath = shellutils.fullPath(os.path.join(path, eachFile))
+                 albumProperties = readConfig(eachFileFullPath)
 
-    path, dirs, files = shellutils.walk(path = albumsPath)
+                 name = albumProperties.get('General', 'name') or shellutils.basename(path)
+                 desc = albumProperties.get('General', 'desc') or ""
+                 visibility = albumProperties.get('General', 'visibility') or "private"
+                  
+                 return { 'name' : name,
+                          'desc' : desc,
+                          'visibility' : visibility,
+                        }
+                
+        return None
+
+    path, dirs, files = shellutils.walk(path = albumsFullPath)
 
     # Check subfolders
     if dirs == []:
-        return None
+        return []
     else:
         output = []
         for eachDir in dirs:
-            result = isAlbum(eachDir)
+            eachDirFullPath = shellutils.fullPath(os.path.join(albumsFullPath, eachDir))
+            result = isAlbum(eachDirFullPath)
             if result != None:
+                logging.debug("Album found!: " + eachDirFullPath)
                 output.append({'name':result["name"],
-                               'path':eachDir,
+                               'path':eachDirFullPath,
                                'desc':result["desc"],
                                'visibility':result["visibility"],
                               })
+            else:
+                output += getLocalAlbums(eachDirFullPath)
         return output
+
 
 def getPhotosOrVideos(albumPath):
     '''
@@ -266,15 +289,24 @@ def core(propertiesFilename):
         saveConfig(properties, propertiesFilename)
 
     # Main loop
-    for album in getLocalAlbums(albumsPath):
+    albums = getLocalAlbums(albumsPath)
+    logging.debug("Albums found " + str(albums))
+
+    for album in albums:
+        logging.info("Working on " + str(album["name"]))
+
         if not serviceModule.isThereAlbum(token, album["name"]):
             serviceModule.addAlbum(token, album["name"], album["desc"])
+            logging.info("  Added album " + str(album["name"]))
 
         for photoOrVideo in getPhotosOrVideos(album["path"]):
-            if isPhoto(photoOrVideo):
-                serviceModule.addPhoto(token, album["name"], photoOrVideo)
-            if isVideo(photoOrVideo):
-                serviceModule.addVideo(token, album["name"], photoOrVideo)
+            photoOrVideoFullPath = shellutils.fullPath(os.path.join(album["path"], photoOrVideo))
+            if isPhoto(photoOrVideoFullPath):
+                serviceModule.addPhoto(token, album["name"], photoOrVideoFullPath)
+                logging.info("  Added/updated photo " + str(photoOrVideo))
+            if isVideo(photoOrVideoFullPath):
+                serviceModule.addVideo(token, album["name"], photoOrVideoFullPath)
+                logging.info("  Added/updated video " + str(photoOrVideo))
 
     # DO STUFF HERE
 #Cojer las properties del archivo de config: nombre, path, tipo (fb, picasa, etc), authkey, visibility

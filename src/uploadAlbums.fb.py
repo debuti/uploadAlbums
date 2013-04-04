@@ -114,7 +114,7 @@ def getValidToken():
     else:
         groups = match.groups()
         access_token = groups[0]
-        print "Got access token!: " + access_token
+        #print "Got access token!: " + access_token
         
         args = {
           'grant_type': 'fb_exchange_token',
@@ -132,7 +132,7 @@ def getValidToken():
         else:
             groups = match.groups()
             long_lived_access_token = groups[0]
-            print "Got long lived access token!: " + long_lived_access_token
+            logging.debug( "Got long lived access token!: " + str(long_lived_access_token))
             return long_lived_access_token
 
 
@@ -201,7 +201,7 @@ def delAlbum(token, albumName):
     if isThereAlbum(token, albumName):
         graph = facebook.GraphAPI(token)
         result = graph.delete_object(getAlbumByName(token, albumName)["id"])
-        print result
+        logging.debug("The result was " + str(result))
 
 
 
@@ -236,7 +236,7 @@ def getAllObjects(token, albumName):
                     lastAfter = result["paging"]["cursors"]["after"]
             else:
                 break
-    print "DEBUG: The objects retrieved were " + str(output)
+    logging.debug("The objects retrieved were " + str(output))
     return output
 
 
@@ -266,7 +266,7 @@ def addPhoto(token, albumName, photoPath):
         if not isThereObject(token, albumName, os.path.basename(photoPath)):
             graph = facebook.GraphAPI(token)
             result = graph.put_photo(open(photoPath), os.path.basename(photoPath), getAlbumByName(token, albumName)["id"])
-            print result
+            logging.debug("The result was " + str(result))
 
 
 def addVideo(token, albumName, videoPath):
@@ -277,7 +277,7 @@ def addVideo(token, albumName, videoPath):
         if not isThereObject(token, albumName, os.path.basename(videoPath)):
             graph = facebook.GraphAPI(token)
             result = graph.put_video(open(videoPath), os.path.basename(videoPath), getAlbumByName(token, albumName)["id"])
-            print result
+            logging.debug("The result was " + str(result))
 
 
 def delObject(token, albumName, objectName):
@@ -287,7 +287,7 @@ def delObject(token, albumName, objectName):
         if isThereObject(token, albumName, objectName):
             graph = facebook.GraphAPI(token)
             result = graph.delete_object(getObjectByName(token, albumName, objectName)["id"])
-            print result
+            logging.debug("The result was " + str(result))
 
 
 
